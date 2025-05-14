@@ -1,0 +1,73 @@
+services:
+    gateway:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/auth:/app
+            - /app/node_modules
+
+    auth:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/auth:/app
+            - /app/node_modules
+
+    user:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/user:/app
+            - /app/node_modules
+
+    post:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/post:/app
+            - /app/node_modules
+
+    comment:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/comment:/app
+            - /app/node_modules
+
+    feed:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/feed:/app
+            - /app/node_modules
+
+    like:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/like-reaction:/app
+            - /app/node_modules
+
+    notification:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/notification:/app
+            - /app/node_modules
+
+    search:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/search:/app
+            - /app/node_modules
+
+    bookmark:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/bookmark:/app
+            - /app/node_modules
+
+    moderation:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/moderation:/app
+            - /app/node_modules
+
+    analytics:
+        command: ["npm", "run", "dev"]
+        volumes:
+            - ./services/analytics:/app
+            - /app/node_modules
+

@@ -17,12 +17,14 @@ services:
             - analytics
         env_file:
             - ./gateway/.env
+        command: ["npm", "start"]
     auth:
         build: ./services/auth
         ports:
             - "3001:3001"
         env_file:
             - ./services/auth/.env
+        command: ["npm", "start"]
 
     user:
         build: ./services/user
@@ -30,6 +32,7 @@ services:
             - "3002:3002"
         env_file:
             - ./services/user/.env
+        command: ["npm", "start"]
 
     post:
         build: ./services/post
@@ -37,6 +40,7 @@ services:
             - "3003:3003"
         env_file:
             - ./services/post/.env
+        command: ["npm", "start"]
 
     comment:
         build: ./services/comment
@@ -44,6 +48,7 @@ services:
             - "3004:3004"
         env_file:
             - ./services/comment/.env
+        command: ["npm", "start"]
 
     feed:
         build: ./services/feed
@@ -51,6 +56,7 @@ services:
             - "3005:3005"
         env_file:
             - ./services/feed/.env
+        command: ["npm", "start"]
 
     like:
         build: ./services/like-reaction
@@ -58,6 +64,7 @@ services:
             - "3006:3006"
         env_file:
             - ./services/like-reaction/.env
+        command: ["npm", "start"]
 
     notification:
         build: ./services/notification
@@ -65,6 +72,7 @@ services:
             - "3007:3007"
         env_file:
             - ./services/notification/.env
+        command: ["npm", "start"]
 
     search:
         build: ./services/search
@@ -72,6 +80,7 @@ services:
             - "3008:3008"
         env_file:
             - ./services/search/.env
+        command: ["npm", "start"]
 
     bookmark:
         build: ./services/bookmark
@@ -79,6 +88,7 @@ services:
             - "3009:3009"
         env_file:
             - ./services/bookmark/.env
+        command: ["npm", "start"]
 
     moderation:
         build: ./services/moderation
@@ -86,6 +96,7 @@ services:
             - "3010:3010"
         env_file:
             - ./services/moderation/.env
+        command: ["npm", "start"]
 
     analytics:
         build: ./services/analytics
@@ -93,4 +104,5 @@ services:
             - "3011:3011"
         env_file:
             - ./services/analytics/.env
+        command: ["npm", "start"]
 
