@@ -1,4 +1,6 @@
-/node_modules
-package-lock.json
+/gateway/node_modules
+/services/*/node_modules
+/gateway/package-lock.json
+/services/*/package-lock.json
 /gateway/.env
 /services/**/.env
