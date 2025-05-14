@@ -1,0 +1,96 @@
+services:
+    gateway:
+        build: ./gateway
+        ports:
+            - "3000:3000"
+        depends_on:
+            - auth
+            - user
+            - post
+            - comment
+            - feed
+            - like
+            - notification
+            - search
+            - bookmark
+            - moderation
+            - analytics
+        env_file:
+            - ./gateway/.env
+    auth:
+        build: ./services/auth
+        ports:
+            - "3001:3001"
+        env_file:
+            - ./services/auth/.env
+
+    user:
+        build: ./services/user
+        ports:
+            - "3002:3002"
+        env_file:
+            - ./services/user/.env
+
+    post:
+        build: ./services/post
+        ports:
+            - "3003:3003"
+        env_file:
+            - ./services/post/.env
+
+    comment:
+        build: ./services/comment
+        ports:
+            - "3004:3004"
+        env_file:
+            - ./services/comment/.env
+
+    feed:
+        build: ./services/feed
+        ports:
+            - "3005:3005"
+        env_file:
+            - ./services/feed/.env
+
+    like:
+        build: ./services/like-reaction
+        ports:
+            - "3006:3006"
+        env_file:
+            - ./services/like-reaction/.env
+
+    notification:
+        build: ./services/notification
+        ports:
+            - "3007:3007"
+        env_file:
+            - ./services/notification/.env
+
+    search:
+        build: ./services/search
+        ports:
+            - "3008:3008"
+        env_file:
+            - ./services/search/.env
+
+    bookmark:
+        build: ./services/bookmark
+        ports:
+            - "3009:3009"
+        env_file:
+            - ./services/bookmark/.env
+
+    moderation:
+        build: ./services/moderation
+        ports:
+            - "3010:3010"
+        env_file:
+            - ./services/moderation/.env
+
+    analytics:
+        build: ./services/analytics
+        ports:
+            - "3011:3011"
+        env_file:
+            - ./services/analytics/.env
+
