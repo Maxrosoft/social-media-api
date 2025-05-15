@@ -2,7 +2,7 @@ services:
     gateway:
         command: ["npm", "run", "dev"]
         volumes:
-            - ./services/auth:/app
+            - ./gateway:/app
             - /app/node_modules
 
     auth:

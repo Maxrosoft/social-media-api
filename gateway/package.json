@@ -14,11 +14,13 @@
     "type": "commonjs",
     "dependencies": {
         "dotenv": "^16.5.0",
-        "express": "^5.1.0"
+        "express": "^5.1.0",
+        "http-proxy-middleware": "^3.0.5"
     },
     "devDependencies": {
         "@types/dotenv": "^6.1.1",
         "@types/express": "^5.0.1",
+        "@types/http-proxy-middleware": "^0.19.3",
         "nodemon": "^3.1.10",
         "tsx": "^4.19.4",
         "typescript": "^5.8.3"
