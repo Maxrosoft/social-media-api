@@ -1,0 +1,37 @@
+services:
+    gateway:
+        command: ["npm", "test"]
+
+    auth:
+        command: ["npm", "test"]
+
+    user:
+        command: ["npm", "test"]
+
+    post:
+        command: ["npm", "test"]
+
+    comment:
+        command: ["npm", "test"]
+
+    feed:
+        command: ["npm", "test"]
+
+    like:
+        command: ["npm", "test"]
+
+    notification:
+        command: ["npm", "test"]
+
+    search:
+        command: ["npm", "test"]
+
+    bookmark:
+        command: ["npm", "test"]
+
+    moderation:
+        command: ["npm", "test"]
+
+    analytics:
+        command: ["npm", "test"]
+
