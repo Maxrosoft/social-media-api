@@ -4,3 +4,4 @@
 /services/*/package-lock.json
 /gateway/.env
 /services/**/.env
+.env
