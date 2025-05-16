@@ -4,7 +4,7 @@
   "description": "",
   "main": "./src/app.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npx tsx ./node_modules/.bin/mocha ./tests/**/*.ts --exit",
     "start": "tsx ./src/app.ts",
     "dev": "nodemon --exec 'tsx' ./src/app.ts"
   },
@@ -17,9 +17,15 @@
     "express": "^5.1.0"
   },
   "devDependencies": {
+    "@types/chai": "^5.2.2",
     "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/supertest": "^6.0.3",
+    "chai": "^5.2.0",
+    "mocha": "^11.2.2",
     "nodemon": "^3.1.10",
+    "supertest": "^7.1.1",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }

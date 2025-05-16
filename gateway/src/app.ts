@@ -33,3 +33,5 @@ app.use("/api/analytics", createProxyMiddleware({ target: "http://analytics:3011
 app.listen(PORT, () => {
     console.log(`Gateway is running on port ${PORT}`);
 });
+
+export default app;

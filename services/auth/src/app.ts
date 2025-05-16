@@ -27,3 +27,5 @@ app.get("/status", (req, res) => {
         console.error(`Unable to connect to ${process.env.POSTGRES_DB}:`, error);
     }
 })();
+
+export default app;

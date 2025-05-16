@@ -20,3 +20,5 @@ app.get("/status", (req, res) => {
 app.listen(PORT, () => {
     console.log(`Search service is running on port ${PORT}`);
 });
+
+export default app;
