@@ -5,7 +5,7 @@
 1. Clone the repository
     
 ```bash
-git clone https://github.com/MaxRosoft/social-media-api.git
+git clone https://github.com/Maxrosoft/social-media-api.git
 cd social-media-api
 ```
 
@@ -31,4 +31,24 @@ make test
 
 ```bash
 make down
+```
+
+### Install dependencies in all services
+
+Use the script to install packages in all services at once:
+
+```bash
+./install-all.sh <package-names> [options]
+```
+
+For example:
+
+```bash
+./install-all.sh express --save-dev
+```
+
+Make the script executable once:
+
+```bash
+chmod +x install-all.sh
 ```
