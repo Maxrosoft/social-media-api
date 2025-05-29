@@ -19,6 +19,8 @@ services:
         env_file:
             - ./gateway/.env
         command: ["npm", "start"]
+        networks:
+            - auth-network
     auth:
         build: ./services/auth
         ports:
