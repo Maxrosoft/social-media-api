@@ -24,7 +24,7 @@ app.get("/status", (req, res) => {
 
 (async () => {
     try {
-        await sequelize.sync();
+        await sequelize.sync({ force: false });
         console.log(`Connection with ${process.env.POSTGRES_DB} has been established successfully.`);
         app.listen(PORT, () => console.log(`Auth service is running on port ${PORT}`));
     } catch (error) {
