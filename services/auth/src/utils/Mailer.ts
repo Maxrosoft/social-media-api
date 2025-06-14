@@ -21,12 +21,12 @@ class Mailer {
         this.email = email;
     }
 
-    async sendVerificationToken(token: string) {
+    async sendVerificationToken(verificationToken: string) {
         const mailOptions = {
             from: BREVO_SENDER,
             to: this.email,
             subject: "Verify your email",
-            html: `<p>Click <a href="http://localhost:3000/api/auth/verify-email?token=${token}">here</a> to verify your email</p>`,
+            html: `<p>Click <a href="http://localhost:3000/api/auth/verify-email?verificationToken=${verificationToken}">here</a> to verify your email</p>`,
         };
         await this.transporter.sendMail(mailOptions);
     }

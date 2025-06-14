@@ -6,12 +6,34 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import Mailer from "../utils/mailer";
 import { Op } from "sequelize";
+import jwt from "jsonwebtoken";
+import redisClient from "../config/redisClient";
 
 async function hashPassword(password: string): Promise<string> {
     const saltRounds: number = 10;
     const salt: string = await bcrypt.genSalt(saltRounds);
     const hashedPassword: string = await bcrypt.hash(password, salt);
     return hashedPassword;
+}
+
+function generateAccessToken(userId: string, role: string) {
+    return jwt.sign({ id: userId, role }, process.env.JWT_SECRET as string, {
+        expiresIn: "1d",
+    });
+}
+
+function sanitizeUser(user: any): any {
+    const {
+        passwordHash,
+        verificationToken,
+        verificationTokenExpiresAt,
+        isBanned,
+        isVerified,
+        mfaEnabled,
+        isPrivate,
+        ...safe
+    } = user.toJSON();
+    return safe;
 }
 
 class AuthController {
@@ -92,12 +114,22 @@ class AuthController {
     async verifyEmail(req: Request, res: Response, next: NextFunction) {
         try {
             // Destructure the request params
-            const token = req.query.token as string;
+            const verificationToken: string = req.query.verificationToken as string;
+
+            // Check if the token is present
+            if (!verificationToken) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "Missing verification token.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
 
             // Check if the token is valid
             const user: any = await User.findOne({
                 where: {
-                    verificationToken: token,
+                    verificationToken,
                     verificationTokenExpiresAt: {
                         [Op.gt]: new Date(),
                     },
@@ -144,6 +176,16 @@ class AuthController {
         try {
             // Destructure the request body
             const { email } = req.body;
+
+            // Check if the required fields are present
+            if (!email) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "Missing required fields.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
 
             // Check if the user exists
             const user: any = await User.findOne({
@@ -200,13 +242,113 @@ class AuthController {
         }
     }
 
-    // async login(req: Request, res: Response, next: NextFunction) {
-    //     try {
-    //         // Destructure the request body
-    //         const { email, password } = req.body;
-    //     } catch (error) {
-    //         next(error);
-    //     }
+    async login(req: Request, res: Response, next: NextFunction) {
+        try {
+            // Destructure the request body
+            const { email, password } = req.body;
+
+            // Check if the required fields are present
+            if (!email || !password) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "Missing required fields.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if the user exists
+            const user: any = await User.findOne({
+                where: {
+                    email,
+                },
+            });
+            if (!user) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 401,
+                    message: "Incorrect email or password.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if the user has too many failed login attempts
+            const failedLoginAttempts = await redisClient.get(`failedLoginAttempts:${user.id}`);            
+            if (failedLoginAttempts && parseInt(failedLoginAttempts) >= 5) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 429,
+                    message: "Too many failed login attempts. Please try again later after 15 minutes.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if the user is verified
+            if (!user.isVerified) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 403,
+                    message: "User is not verified.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if the user is banned
+            if (user.isBanned) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 403,
+                    message: "User is banned.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if the password is correct
+            const isPasswordCorrect: boolean = await bcrypt.compare(password, user.passwordHash);
+            if (!isPasswordCorrect) {
+                // Update the failed login attempts
+                if ((await redisClient.get(`failedLoginAttempts:${user.id}`)) === null) {
+                    await redisClient.set(`failedLoginAttempts:${user.id}`, 1, {
+                        EX: 15 * 60,
+                    });
+                } else {
+                    await redisClient.incr(`failedLoginAttempts:${user.id}`);
+                }
+
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 401,
+                    message: "Incorrect email or password.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Reset the failed login attempts
+            await redisClient.del(`failedLoginAttempts:${user.id}`);
+
+            // Generate the access token
+            const accessToken: string = generateAccessToken(user.id, user.role);
+
+            // Set the access token in redis
+            await redisClient.set(`jwt:${user.id}`, accessToken, {
+                EX: 24 * 60 * 60,
+            });
+
+            // Send the response
+            const response: APIResponse = {
+                success: true,
+                statusCode: 200,
+                message: "Login successful!",
+                data: {
+                    accessToken,
+                    user: sanitizeUser(user),
+                },
+            };
+            return res.status(response.statusCode).json(response);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export default new AuthController();

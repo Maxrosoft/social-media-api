@@ -1,5 +1,5 @@
 import sequelize from "../config/sequelize";
-import { DataTypes } from "sequelize";
+import { DataTypes, ENUM } from "sequelize";
 
 const User = sequelize.define(
     "User",
@@ -8,6 +8,11 @@ const User = sequelize.define(
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
+        },
+        role: {
+            type: ENUM("user", "admin"),
+            allowNull: false,
+            defaultValue: "user",
         },
         email: {
             type: DataTypes.STRING,
