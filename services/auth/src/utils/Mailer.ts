@@ -30,6 +30,26 @@ class Mailer {
         };
         await this.transporter.sendMail(mailOptions);
     }
+
+    async sendMfaToken(mfaFourDigitCode: string) {
+        const mailOptions = {
+            from: BREVO_SENDER,
+            to: this.email,
+            subject: "MFA Verification",
+            html: `<p>Your MFA code is: ${mfaFourDigitCode}</p>`,
+        };
+        await this.transporter.sendMail(mailOptions);
+    }
+
+    async sendPasswordResetEmail(passwordResetToken: string) {
+        const mailOptions = {
+            from: BREVO_SENDER,
+            to: this.email,
+            subject: "Password Reset",
+            html: `<p>Your password reset token is: ${passwordResetToken}</p>`,
+        }
+        await this.transporter.sendMail(mailOptions);
+    }
 }
 
 export default Mailer;

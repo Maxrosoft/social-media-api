@@ -1,6 +1,8 @@
 import express, { Express } from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import "dotenv/config";
+import errorHandler from "./middlewares/errorHandler";
+import limiter from "./middlewares/limiter";
 
 const PORT = process.env.PORT || 3000;
 
@@ -18,6 +20,8 @@ app.get("/api/status", (req, res) => {
     });
 });
 
+app.use(limiter);
+
 app.use("/api/auth", createProxyMiddleware({ target: "http://auth:3001", changeOrigin: true }));
 app.use("/api/user", createProxyMiddleware({ target: "http://user:3002", changeOrigin: true }));
 app.use("/api/post", createProxyMiddleware({ target: "http://post:3003", changeOrigin: true }));
@@ -29,6 +33,7 @@ app.use("/api/search", createProxyMiddleware({ target: "http://search:3008", cha
 app.use("/api/bookmark", createProxyMiddleware({ target: "http://bookmark:3009", changeOrigin: true }));
 app.use("/api/moderation", createProxyMiddleware({ target: "http://moderation:3010", changeOrigin: true }));
 app.use("/api/analytics", createProxyMiddleware({ target: "http://analytics:3011", changeOrigin: true }));
+app.use(errorHandler);
 
 app.listen(PORT, () => {
     console.log(`Gateway is running on port ${PORT}`);

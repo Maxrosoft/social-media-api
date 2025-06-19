@@ -149,6 +149,21 @@ services:
             timeout: 3s
             retries: 5
 
+    gateway-redis:
+        image: redis
+        restart: always
+        ports:
+            - "6380:6379"
+        volumes:
+            - gateway-redis-data:/data
+        networks:
+            - auth-network
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 3s
+            retries: 5
+
     pgadmin:
         image: dpage/pgadmin4
         container_name: pgadmin
@@ -168,6 +183,8 @@ volumes:
     auth-db-data:
         driver: local
     auth-redis-data:
+        driver: local
+    gateway-redis-data:
         driver: local
     pgadmin-data:
         driver: local

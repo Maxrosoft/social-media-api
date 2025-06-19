@@ -2,6 +2,7 @@ import express, { Express } from "express";
 import sequelize from "./config/sequelize";
 import authRouter from "./routes/authRouter";
 import "dotenv/config";
+import errorHandler from "./middlewares/errorHandler";
 
 const PORT = process.env.PORT || 3001;
 
@@ -21,6 +22,8 @@ app.get("/status", (req, res) => {
         timestamp: Date.now(),
     });
 });
+
+app.use(errorHandler);
 
 (async () => {
     try {

@@ -22,6 +22,8 @@ function generateAccessToken(userId: string, role: string) {
     });
 }
 
+const isEmail = new RegExp(/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/);
+
 function sanitizeUser(user: any): any {
     const {
         passwordHash,
@@ -30,7 +32,6 @@ function sanitizeUser(user: any): any {
         isBanned,
         isVerified,
         mfaEnabled,
-        isPrivate,
         ...safe
     } = user.toJSON();
     return safe;
@@ -172,76 +173,6 @@ class AuthController {
         }
     }
 
-    async sendVerificationEmail(req: Request, res: Response, next: NextFunction) {
-        try {
-            // Destructure the request body
-            const { email } = req.body;
-
-            // Check if the required fields are present
-            if (!email) {
-                const response: APIResponse = {
-                    success: false,
-                    statusCode: 400,
-                    message: "Missing required fields.",
-                };
-                return res.status(response.statusCode).json(response);
-            }
-
-            // Check if the user exists
-            const user: any = await User.findOne({
-                where: {
-                    email,
-                },
-            });
-            if (!user) {
-                const response: APIResponse = {
-                    success: false,
-                    statusCode: 404,
-                    message: "User does not exist.",
-                };
-                return res.status(response.statusCode).json(response);
-            }
-
-            // Check if the user is already verified
-            if (user.isVerified) {
-                const response: APIResponse = {
-                    success: false,
-                    statusCode: 400,
-                    message: "User is already verified.",
-                };
-                return res.status(response.statusCode).json(response);
-            }
-
-            // Create the verification token
-            const verificationToken: string = crypto.randomBytes(20).toString("hex");
-            await User.update(
-                {
-                    verificationToken,
-                    verificationTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
-                },
-                {
-                    where: {
-                        email,
-                    },
-                }
-            );
-
-            // Send the verification email
-            const mailer = new Mailer(email);
-            await mailer.sendVerificationToken(verificationToken);
-
-            // Send the response
-            const response: APIResponse = {
-                success: true,
-                statusCode: 200,
-                message: "Verification email sent successfully!",
-            };
-            return res.status(response.statusCode).json(response);
-        } catch (error) {
-            next(error);
-        }
-    }
-
     async login(req: Request, res: Response, next: NextFunction) {
         try {
             // Destructure the request body
@@ -273,7 +204,7 @@ class AuthController {
             }
 
             // Check if the user has too many failed login attempts
-            const failedLoginAttempts = await redisClient.get(`failedLoginAttempts:${user.id}`);            
+            const failedLoginAttempts = await redisClient.get(`failedLoginAttempts:${user.id}`);
             if (failedLoginAttempts && parseInt(failedLoginAttempts) >= 5) {
                 const response: APIResponse = {
                     success: false,
@@ -323,6 +254,33 @@ class AuthController {
                 return res.status(response.statusCode).json(response);
             }
 
+            // Check if MFA is enabled
+            if (user.mfaEnabled) {
+                // Generate the MFA token
+                const mfaToken: string = crypto.randomBytes(20).toString("hex");
+                user.mfaToken = mfaToken;
+                user.mfaTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+                await user.save();
+                // Generate the MFA code
+                const mfaFourDigitCode: string = Math.floor(1000 + Math.random() * 9000).toString();
+                redisClient.set(`mfaCode:${user.id}`, mfaFourDigitCode, {
+                    EX: 5 * 60,
+                });
+
+                // Send the MFA code
+                const mailer = new Mailer(user.email);
+                await mailer.sendMfaToken(mfaFourDigitCode);
+
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 401,
+                    message: "MFA is enabled. Please log in using MFA.",
+                    data: { mfaRequired: true, mfaToken },
+                };
+
+                return res.status(response.statusCode).json(response);
+            }
+
             // Reset the failed login attempts
             await redisClient.del(`failedLoginAttempts:${user.id}`);
 
@@ -343,6 +301,172 @@ class AuthController {
                     accessToken,
                     user: sanitizeUser(user),
                 },
+            };
+            return res.status(response.statusCode).json(response);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async mfaLogin(req: Request, res: Response, next: NextFunction) {
+        try {
+            // Destructure the request body
+            const { mfaToken, mfaCode } = req.body;
+
+            // Check if all required fields are present
+            if (!mfaToken || !mfaCode) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "Missing required fields.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if mfa token is valid
+            const user: any = await User.findOne({
+                where: {
+                    mfaToken,
+                    mfaTokenExpiresAt: {
+                        [Op.gt]: new Date(),
+                    },
+                },
+            });
+
+            // Send the response if the token is invalid
+            if (!user) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 401,
+                    message: "Invalid MFA token.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if mfa code is valid
+            const mfaCodeFromRedis: string | null = await redisClient.get(`mfaCode:${user.id}`);
+            if (mfaCodeFromRedis !== mfaCode) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 401,
+                    message: "Invalid MFA code.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Reset the mfa token
+            user.mfaToken = null;
+            user.mfaTokenExpiresAt = null;
+            await user.save();
+
+            // Generate the access token
+            const accessToken: string = generateAccessToken(user.id, user.role);
+
+            // Set the access token in redis
+            await redisClient.set(`jwt:${user.id}`, accessToken, {
+                EX: 24 * 60 * 60,
+            });
+
+            // Send the response
+            const response: APIResponse = {
+                success: true,
+                statusCode: 200,
+                message: "Login via MFA successful!",
+                data: {
+                    accessToken,
+                    user: sanitizeUser(user),
+                },
+            };
+            return res.status(response.statusCode).json(response);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async passwordResetRequest(req: Request, res: Response, next: NextFunction) {
+        try {
+            // Destructure the request body
+            const { email } = req.body;
+
+            // Check if the email is valid
+            if (!email || !isEmail.test(email)) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "Invalid email format.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Send the password reset email
+            const user: any = await User.findOne({
+                where: {
+                    email,
+                },
+            });
+            if (user) {
+                const passwordResetToken: string = crypto.randomBytes(20).toString("hex");
+                await redisClient.set(`passwordReset:${user.id}`, passwordResetToken, {
+                    EX: 5 * 60,
+                });
+                const mailer = new Mailer(user.email);
+                await mailer.sendPasswordResetEmail(passwordResetToken);
+            }
+
+            // Send the response
+            const response: APIResponse = {
+                success: true,
+                statusCode: 200,
+                message: "If an account with that email exists, a password reset link has been sent.",
+            };
+            return res.status(response.statusCode).json(response);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async passwordResetConfirm(req: any, res: Response, next: NextFunction) {
+        try {
+            const {passwordResetToken, newPassword} = req.body;
+
+            // Check if all required fields are present
+            if (!passwordResetToken || !newPassword) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "Missing required fields.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if password reset token is valid
+            const user: any = await User.findOne({
+                where: {
+                    id: req.user.id,
+                },
+            })
+            const passwordResetTokenFromRedis: string | null = await redisClient.get(`passwordReset:${user.id}`);
+            if (passwordResetTokenFromRedis !== passwordResetToken) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 401,
+                    message: "Invalid or expired password reset token.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Hash the new password
+            const hashedPassword: string = await hashPassword(newPassword);
+
+            // Update the password
+            user.password = hashedPassword;
+            await user.save();
+
+            // Send the response
+            const response: APIResponse = {
+                success: true,
+                statusCode: 200,
+                message: "Password updated successfully. You may now log in with the new password.",
             };
             return res.status(response.statusCode).json(response);
         } catch (error) {

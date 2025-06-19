@@ -51,14 +51,6 @@ const User = sequelize.define(
                 notEmpty: true,
             },
         },
-        bio: {
-            type: DataTypes.STRING,
-            allowNull: true,
-        },
-        avatarUrl: {
-            type: DataTypes.STRING,
-            allowNull: true,
-        },
         isVerified: {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
@@ -82,6 +74,14 @@ const User = sequelize.define(
         mfaEnabled: {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
+        },
+        mfaToken: {
+            type: DataTypes.STRING,
+            allowNull: true,
+        },
+        mfaTokenExpiresAt: {
+            type: DataTypes.DATE,
+            allowNull: true,
         },
     },
     { timestamps: true }
