@@ -5,3 +5,4 @@
 /gateway/.env
 /services/**/.env
 .env
+.vscode/

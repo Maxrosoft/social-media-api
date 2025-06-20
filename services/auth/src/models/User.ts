@@ -9,6 +9,11 @@ const User = sequelize.define(
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
         },
+        googleId: {
+            type: DataTypes.STRING,
+            unique: true,
+            allowNull: true,
+        },
         role: {
             type: ENUM("user", "admin"),
             allowNull: false,
@@ -24,7 +29,7 @@ const User = sequelize.define(
         },
         passwordHash: {
             type: DataTypes.STRING,
-            allowNull: false,
+            allowNull: true,
             validate: {
                 notEmpty: true,
             },
@@ -62,10 +67,6 @@ const User = sequelize.define(
         verificationTokenExpiresAt: {
             type: DataTypes.DATE,
             allowNull: true,
-        },
-        isPrivate: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
         },
         isBanned: {
             type: DataTypes.BOOLEAN,

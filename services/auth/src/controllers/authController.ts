@@ -4,10 +4,11 @@ import User from "../models/User";
 import passwordValidationSchema from "../utils/passwordValidationSchema";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import Mailer from "../utils/mailer";
+import Mailer from "../utils/Mailer";
 import { Op } from "sequelize";
 import jwt from "jsonwebtoken";
 import redisClient from "../config/redisClient";
+import passport from "passport";
 
 async function hashPassword(password: string): Promise<string> {
     const saltRounds: number = 10;
@@ -25,16 +26,19 @@ function generateAccessToken(userId: string, role: string) {
 const isEmail = new RegExp(/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/);
 
 function sanitizeUser(user: any): any {
-    const {
-        passwordHash,
-        verificationToken,
-        verificationTokenExpiresAt,
-        isBanned,
-        isVerified,
-        mfaEnabled,
-        ...safe
-    } = user.toJSON();
-    return safe;
+    return {
+        id: user.id,
+        googleId: user.googleId,
+        role: user.role,
+        email: user.email,
+        name: user.name,
+        surname: user.surname,
+        username: user.username,
+        isVerified: user.isVerified,
+        isBanned: user.isBanned,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+    };
 }
 
 class AuthController {
@@ -199,6 +203,16 @@ class AuthController {
                     success: false,
                     statusCode: 401,
                     message: "Incorrect email or password.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if the user is logged in with Google
+            if (user.googleId) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 403,
+                    message: "User is logged in with Google.",
                 };
                 return res.status(response.statusCode).json(response);
             }
@@ -427,7 +441,8 @@ class AuthController {
 
     async passwordResetConfirm(req: any, res: Response, next: NextFunction) {
         try {
-            const {passwordResetToken, newPassword} = req.body;
+            // Destructure the request body
+            const { passwordResetToken, newPassword } = req.body;
 
             // Check if all required fields are present
             if (!passwordResetToken || !newPassword) {
@@ -444,7 +459,7 @@ class AuthController {
                 where: {
                     id: req.user.id,
                 },
-            })
+            });
             const passwordResetTokenFromRedis: string | null = await redisClient.get(`passwordReset:${user.id}`);
             if (passwordResetTokenFromRedis !== passwordResetToken) {
                 const response: APIResponse = {
@@ -467,6 +482,35 @@ class AuthController {
                 success: true,
                 statusCode: 200,
                 message: "Password updated successfully. You may now log in with the new password.",
+            };
+            return res.status(response.statusCode).json(response);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async googleCallback(req: any, res: Response, next: NextFunction) {
+        try {
+            // Destructure the request
+            const user: any = req.user;
+
+            // Generate the access token
+            const accessToken: string = generateAccessToken(user.id, user.role);
+
+            // Set the access token in redis
+            await redisClient.set(`jwt:${user.id}`, accessToken, {
+                EX: 24 * 60 * 60,
+            });
+
+            // Send the response
+            const response: APIResponse = {
+                success: true,
+                statusCode: 200,
+                message: "Login via Google successful!",
+                data: {
+                    accessToken,
+                    user: sanitizeUser(user),
+                },
             };
             return res.status(response.statusCode).json(response);
         } catch (error) {

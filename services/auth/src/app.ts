@@ -3,11 +3,14 @@ import sequelize from "./config/sequelize";
 import authRouter from "./routes/authRouter";
 import "dotenv/config";
 import errorHandler from "./middlewares/errorHandler";
+import passport from "passport";
+import "./config/googleStrategy";
 
 const PORT = process.env.PORT || 3001;
 
 const app: Express = express();
 
+app.use(passport.initialize());
 app.use(express.json());
 app.use(authRouter);
 
@@ -27,7 +30,7 @@ app.use(errorHandler);
 
 (async () => {
     try {
-        await sequelize.sync({ force: false });
+        await sequelize.sync({ force: true });
         console.log(`Connection with ${process.env.POSTGRES_DB} has been established successfully.`);
         app.listen(PORT, () => console.log(`Auth service is running on port ${PORT}`));
     } catch (error) {
