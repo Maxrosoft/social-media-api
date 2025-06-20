@@ -8,7 +8,8 @@ import Mailer from "../utils/Mailer";
 import { Op } from "sequelize";
 import jwt from "jsonwebtoken";
 import redisClient from "../config/redisClient";
-import passport from "passport";
+import { publishUserCreatedEvent } from "../events/publisher";
+import PublishedUser from "../interfaces/PublishedUser";
 
 async function hashPassword(password: string): Promise<string> {
     const saltRounds: number = 10;
@@ -164,6 +165,17 @@ class AuthController {
                     },
                 }
             );
+
+            // Publish the user created event
+            const publishedUser: PublishedUser = {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                surname: user.surname,
+                username: user.username,
+                isBanned: user.isBanned,
+            };
+            await publishUserCreatedEvent(publishedUser);
 
             // Send the response if the token is valid
             const response: APIResponse = {
@@ -493,6 +505,17 @@ class AuthController {
         try {
             // Destructure the request
             const user: any = req.user;
+
+            // Publish the user created event
+            const publishedUser: PublishedUser = {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                surname: user.surname,
+                username: user.username,
+                isBanned: user.isBanned,
+            };
+            await publishUserCreatedEvent(publishedUser);
 
             // Generate the access token
             const accessToken: string = generateAccessToken(user.id, user.role);

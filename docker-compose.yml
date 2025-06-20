@@ -21,6 +21,8 @@ services:
         command: ["npm", "start"]
         networks:
             - auth-network
+            - user-network
+
     auth:
         build: ./services/auth
         ports:
@@ -35,7 +37,10 @@ services:
                 condition: service_healthy
             auth-redis:
                 condition: service_healthy
-        dns: 8.8.8.8
+            rabbitmq:
+                condition: service_started
+        environment:
+            RABBITMQ_URL: amqp://rabbitmq:5672
 
     user:
         build: ./services/user
@@ -44,6 +49,15 @@ services:
         env_file:
             - ./services/user/.env
         command: ["npm", "start"]
+        networks:
+            - user-network
+        depends_on:
+            user-postgres:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_started
+        environment:
+            RABBITMQ_URL: amqp://rabbitmq:5672
 
     post:
         build: ./services/post
@@ -133,6 +147,22 @@ services:
         volumes:
             - auth-db-data:/var/lib/postgresql/data
 
+    user-postgres:
+        image: postgres
+        ports:
+            - "5433:5432"
+        env_file:
+            - ./services/user/.env
+        networks:
+            - user-network
+        healthcheck:
+            test: ["CMD-SHELL", "sh -c 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB'"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        volumes:
+            - user-db-data:/var/lib/postgresql/data
+
     auth-redis:
         image: redis
         restart: always
@@ -174,13 +204,26 @@ services:
             - "5050:80"
         depends_on:
             - auth-postgres
+            - user-postgres
         volumes:
             - pgadmin-data:/var/lib/pgadmin
         networks:
             - auth-network
+            - user-network
+
+    rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+            - "5672:5672"
+            - "15672:15672"
+        networks:
+            - auth-network
+            - user-network
 
 volumes:
     auth-db-data:
+        driver: local
+    user-db-data:
         driver: local
     auth-redis-data:
         driver: local
@@ -191,4 +234,6 @@ volumes:
 
 networks:
     auth-network:
+        driver: bridge
+    user-network:
         driver: bridge
