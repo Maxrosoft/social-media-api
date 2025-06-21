@@ -39,6 +39,8 @@ services:
                 condition: service_healthy
             rabbitmq:
                 condition: service_started
+            session-redis:
+                condition: service_healthy
         environment:
             RABBITMQ_URL: amqp://rabbitmq:5672
 
@@ -56,6 +58,8 @@ services:
                 condition: service_healthy
             rabbitmq:
                 condition: service_started
+            session-redis:
+                condition: service_healthy
         environment:
             RABBITMQ_URL: amqp://rabbitmq:5672
 
@@ -188,6 +192,24 @@ services:
             - gateway-redis-data:/data
         networks:
             - auth-network
+            - user-network
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 3s
+            retries: 5
+
+    session-redis:
+        image: redis
+        restart: always
+        ports:
+            - "6381:6379"
+        command: redis-server
+        volumes:
+            - session-redis-data:/data
+        networks:
+            - auth-network
+            - user-network
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             interval: 10s
@@ -226,6 +248,8 @@ volumes:
     user-db-data:
         driver: local
     auth-redis-data:
+        driver: local
+    session-redis-data:
         driver: local
     gateway-redis-data:
         driver: local

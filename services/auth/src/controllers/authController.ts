@@ -7,7 +7,7 @@ import crypto from "crypto";
 import Mailer from "../utils/Mailer";
 import { Op } from "sequelize";
 import jwt from "jsonwebtoken";
-import redisClient from "../config/redisClient";
+import { authRedisClient, sessionRedisClient } from "../config/redis";
 import { publishUserCreatedEvent } from "../events/publisher";
 import PublishedUser from "../interfaces/PublishedUser";
 
@@ -19,7 +19,8 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 function generateAccessToken(userId: string, role: string) {
-    return jwt.sign({ id: userId, role }, process.env.JWT_SECRET as string, {
+    const jti = crypto.randomBytes(16).toString("hex");
+    return jwt.sign({ id: userId, role, jti }, process.env.JWT_SECRET as string, {
         expiresIn: "1d",
     });
 }
@@ -167,15 +168,17 @@ class AuthController {
             );
 
             // Publish the user created event
-            const publishedUser: PublishedUser = {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                surname: user.surname,
-                username: user.username,
-                isBanned: user.isBanned,
-            };
-            await publishUserCreatedEvent(publishedUser);
+            if (user.firstLogin) {
+                const publishedUser: PublishedUser = {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    surname: user.surname,
+                    username: user.username,
+                    isBanned: user.isBanned,
+                };
+                await publishUserCreatedEvent(publishedUser);
+            }
 
             // Send the response if the token is valid
             const response: APIResponse = {
@@ -230,7 +233,7 @@ class AuthController {
             }
 
             // Check if the user has too many failed login attempts
-            const failedLoginAttempts = await redisClient.get(`failedLoginAttempts:${user.id}`);
+            const failedLoginAttempts = await authRedisClient.get(`failedLoginAttempts:${user.id}`);
             if (failedLoginAttempts && parseInt(failedLoginAttempts) >= 5) {
                 const response: APIResponse = {
                     success: false,
@@ -264,12 +267,12 @@ class AuthController {
             const isPasswordCorrect: boolean = await bcrypt.compare(password, user.passwordHash);
             if (!isPasswordCorrect) {
                 // Update the failed login attempts
-                if ((await redisClient.get(`failedLoginAttempts:${user.id}`)) === null) {
-                    await redisClient.set(`failedLoginAttempts:${user.id}`, 1, {
+                if ((await authRedisClient.get(`failedLoginAttempts:${user.id}`)) === null) {
+                    await authRedisClient.set(`failedLoginAttempts:${user.id}`, 1, {
                         EX: 15 * 60,
                     });
                 } else {
-                    await redisClient.incr(`failedLoginAttempts:${user.id}`);
+                    await authRedisClient.incr(`failedLoginAttempts:${user.id}`);
                 }
 
                 const response: APIResponse = {
@@ -289,7 +292,7 @@ class AuthController {
                 await user.save();
                 // Generate the MFA code
                 const mfaFourDigitCode: string = Math.floor(1000 + Math.random() * 9000).toString();
-                redisClient.set(`mfaCode:${user.id}`, mfaFourDigitCode, {
+                authRedisClient.set(`mfaCode:${user.id}`, mfaFourDigitCode, {
                     EX: 5 * 60,
                 });
 
@@ -308,15 +311,32 @@ class AuthController {
             }
 
             // Reset the failed login attempts
-            await redisClient.del(`failedLoginAttempts:${user.id}`);
+            await authRedisClient.del(`failedLoginAttempts:${user.id}`);
 
             // Generate the access token
             const accessToken: string = generateAccessToken(user.id, user.role);
 
-            // Set the access token in redis
-            await redisClient.set(`jwt:${user.id}`, accessToken, {
-                EX: 24 * 60 * 60,
+            // Extract jti from the token
+            const decoded = jwt.decode(accessToken) as any;
+            const jti = decoded.jti;
+
+            // Store session data in Redis
+            const sessionData = {
+                userId: user.id,
+                role: user.role,
+                email: user.email,
+                username: user.username,
+                createdAt: new Date().toISOString(),
+                lastActivity: new Date().toISOString(),
+            };
+
+            await sessionRedisClient.set(`session:${jti}`, JSON.stringify(sessionData), {
+                EX: 24 * 60 * 60, // 24 hours
             });
+
+            // Update the user
+            user.firstLogin = false;
+            await user.save();
 
             // Send the response
             const response: APIResponse = {
@@ -370,7 +390,7 @@ class AuthController {
             }
 
             // Check if mfa code is valid
-            const mfaCodeFromRedis: string | null = await redisClient.get(`mfaCode:${user.id}`);
+            const mfaCodeFromRedis: string | null = await authRedisClient.get(`mfaCode:${user.id}`);
             if (mfaCodeFromRedis !== mfaCode) {
                 const response: APIResponse = {
                     success: false,
@@ -383,14 +403,28 @@ class AuthController {
             // Reset the mfa token
             user.mfaToken = null;
             user.mfaTokenExpiresAt = null;
+            user.firstLogin = false;
             await user.save();
 
             // Generate the access token
             const accessToken: string = generateAccessToken(user.id, user.role);
 
-            // Set the access token in redis
-            await redisClient.set(`jwt:${user.id}`, accessToken, {
-                EX: 24 * 60 * 60,
+            // Extract jti from the token
+            const decoded = jwt.decode(accessToken) as any;
+            const jti = decoded.jti;
+
+            // Store session data in Redis
+            const sessionData = {
+                userId: user.id,
+                role: user.role,
+                email: user.email,
+                username: user.username,
+                createdAt: new Date().toISOString(),
+                lastActivity: new Date().toISOString(),
+            };
+
+            await sessionRedisClient.set(`session:${jti}`, JSON.stringify(sessionData), {
+                EX: 24 * 60 * 60, // 24 hours
             });
 
             // Send the response
@@ -432,7 +466,7 @@ class AuthController {
             });
             if (user) {
                 const passwordResetToken: string = crypto.randomBytes(20).toString("hex");
-                await redisClient.set(`passwordReset:${user.id}`, passwordResetToken, {
+                await authRedisClient.set(`passwordReset:${user.id}`, passwordResetToken, {
                     EX: 5 * 60,
                 });
                 const mailer = new Mailer(user.email);
@@ -472,7 +506,9 @@ class AuthController {
                     id: req.user.id,
                 },
             });
-            const passwordResetTokenFromRedis: string | null = await redisClient.get(`passwordReset:${user.id}`);
+            const passwordResetTokenFromRedis: string | null = await authRedisClient.get(
+                `passwordReset:${user.id}`
+            );
             if (passwordResetTokenFromRedis !== passwordResetToken) {
                 const response: APIResponse = {
                     success: false,
@@ -507,22 +543,37 @@ class AuthController {
             const user: any = req.user;
 
             // Publish the user created event
-            const publishedUser: PublishedUser = {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                surname: user.surname,
-                username: user.username,
-                isBanned: user.isBanned,
-            };
-            await publishUserCreatedEvent(publishedUser);
+            if (user.firstLogin) {
+                const publishedUser: PublishedUser = {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    surname: user.surname,
+                    username: user.username,
+                    isBanned: user.isBanned,
+                };
+                await publishUserCreatedEvent(publishedUser);
+            }
 
             // Generate the access token
             const accessToken: string = generateAccessToken(user.id, user.role);
 
-            // Set the access token in redis
-            await redisClient.set(`jwt:${user.id}`, accessToken, {
-                EX: 24 * 60 * 60,
+            // Extract jti from the token
+            const decoded = jwt.decode(accessToken) as any;
+            const jti = decoded.jti;
+
+            // Store session data in Redis
+            const sessionData = {
+                userId: user.id,
+                role: user.role,
+                email: user.email,
+                username: user.username,
+                createdAt: new Date().toISOString(),
+                lastActivity: new Date().toISOString(),
+            };
+
+            await sessionRedisClient.set(`session:${jti}`, JSON.stringify(sessionData), {
+                EX: 24 * 60 * 60, // 24 hours
             });
 
             // Send the response

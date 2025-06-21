@@ -84,6 +84,10 @@ const User = sequelize.define(
             type: DataTypes.DATE,
             allowNull: true,
         },
+        firstLogin: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: true,
+        },
     },
     { timestamps: true }
 );

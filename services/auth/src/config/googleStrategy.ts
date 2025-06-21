@@ -25,6 +25,7 @@ passport.use(
                 if (user) {
                     user.googleId = googleId;
                     user.passwordHash = null;
+                    user.firstLogin = false;
                     await user.save();
                 } else {
                     const username = `google_${uuidv4().slice(0, 8)}`;
