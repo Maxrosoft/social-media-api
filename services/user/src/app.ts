@@ -21,7 +21,7 @@ app.get("/status", (req, res) => {
 
 (async () => {
     try {
-        await sequelize.sync({ force: true });
+        await sequelize.sync({ force: false });
         console.log(`Connection with ${process.env.POSTGRES_DB} has been established successfully.`);
         await listenForUserEvents();
         console.log("Listening for user events...");
