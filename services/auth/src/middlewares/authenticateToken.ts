@@ -47,6 +47,8 @@ export default async function authenticateToken(req: Request, res: Response, nex
             lastActivity: sessionDataObject.lastActivity,
         };
 
+        (req as any).session = { jti: payload.jti };
+
         next();
     } catch (error) {
         next(error);

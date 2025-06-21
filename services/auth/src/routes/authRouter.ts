@@ -25,6 +25,7 @@ authRouter.get("/oauth/google/callback",
     }),
     authController.googleCallback as any
 );
+authRouter.post("/logout", authenticateToken as any, authController.logout as any);
 
 
 export default authRouter;

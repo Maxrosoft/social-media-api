@@ -465,6 +465,16 @@ class AuthController {
                 },
             });
             if (user) {
+                // Check if the user is a Google account
+                if (user.googleId) {
+                    const response: APIResponse = {
+                        success: false,
+                        statusCode: 400,
+                        message: "You cannot reset the password for a Google account.",
+                    };
+                    return res.status(response.statusCode).json(response);
+                }
+                // Generate a password reset token
                 const passwordResetToken: string = crypto.randomBytes(20).toString("hex");
                 await authRedisClient.set(`passwordReset:${user.id}`, passwordResetToken, {
                     EX: 5 * 60,
@@ -524,6 +534,12 @@ class AuthController {
             // Update the password
             user.password = hashedPassword;
             await user.save();
+
+            // Extract jti from the session
+            const jti = req.session.jti;
+
+            // Delete session data from Redis
+            await sessionRedisClient.del(`session:${jti}`);
 
             // Send the response
             const response: APIResponse = {
@@ -585,6 +601,26 @@ class AuthController {
                     accessToken,
                     user: sanitizeUser(user),
                 },
+            };
+            return res.status(response.statusCode).json(response);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async logout(req: any, res: Response, next: NextFunction) {
+        try {
+            // Extract jti from the session
+            const jti = req.session.jti;
+
+            // Delete session data from Redis
+            await sessionRedisClient.del(`session:${jti}`);
+
+            // Send the response
+            const response: APIResponse = {
+                success: true,
+                statusCode: 200,
+                message: "Logout successful!",
             };
             return res.status(response.statusCode).json(response);
         } catch (error) {
