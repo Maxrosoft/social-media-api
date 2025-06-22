@@ -1,19 +1,19 @@
 import sequelize from "../config/sequelize";
 import { DataTypes } from "sequelize";
 
-const Follow = sequelize.define(
-    "Follow",
+const FollowRequest = sequelize.define(
+    "FollowRequest",
     {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
         },
-        followerId: {
+        requesterId: {
             type: DataTypes.UUID,
             allowNull: false,
         },
-        followingId: {
+        requestedId: {
             type: DataTypes.UUID,
             allowNull: false,
         },
@@ -21,4 +21,4 @@ const Follow = sequelize.define(
     { timestamps: true }
 );
 
-export default Follow;
+export default FollowRequest;

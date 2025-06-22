@@ -1,7 +1,5 @@
 import sequelize from "../config/sequelize";
 import { DataTypes, ENUM } from "sequelize";
-import Follow from "./Follow";
-import Block from "./Block";
 
 const User = sequelize.define(
     "User",
@@ -67,25 +65,5 @@ const User = sequelize.define(
     },
     { timestamps: true }
 );
-
-User.hasMany(Follow, {
-    foreignKey: "followerId",
-    as: "following",
-});
-
-User.hasMany(Follow, {
-    foreignKey: "followingId",
-    as: "followers",
-});
-
-User.hasMany(Block, {
-    foreignKey: "blockerId",
-    as: "blocks",
-});
-
-User.hasMany(Block, {
-    foreignKey: "blockedId",
-    as: "blockedBy",
-});
 
 export default User;

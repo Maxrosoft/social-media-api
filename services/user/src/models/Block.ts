@@ -1,6 +1,5 @@
 import sequelize from "../config/sequelize";
-import { DataTypes, ENUM } from "sequelize";
-import User from "./User";
+import { DataTypes } from "sequelize";
 
 const Block = sequelize.define(
     "Block",
@@ -21,15 +20,5 @@ const Block = sequelize.define(
     },
     { timestamps: true }
 );
-
-Block.belongsTo(User, {
-    foreignKey: "blockerId",
-    as: "blocker",
-});
-
-Block.belongsTo(User, {
-    foreignKey: "blockedId",
-    as: "blockedUser",
-});
 
 export default Block;

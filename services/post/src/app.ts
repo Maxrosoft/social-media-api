@@ -1,9 +1,17 @@
 import express, { Express } from "express";
 import "dotenv/config";
+import sequelize from "./config/sequelize";
+import postsRouter from "./routes/postsRouter";
+import errorHandler from "./middlewares/errorHandler";
 
 const PORT = process.env.PORT || 3003;
 
 const app: Express = express();
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(postsRouter);
 
 app.get("/health", (req, res) => {
     res.status(200).json({ status: "ok" });
@@ -17,8 +25,18 @@ app.get("/status", (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`Post service is running on port ${PORT}`);
-});
+app.use(errorHandler);
+
+(async () => {
+    try {
+        await sequelize.sync({ force: false });
+        console.log(`Connection with ${process.env.POSTGRES_DB} has been established successfully.`);
+        app.listen(PORT, () => {
+            console.log(`Post service is running on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error("Startup error:", error);
+    }
+})();
 
 export default app;

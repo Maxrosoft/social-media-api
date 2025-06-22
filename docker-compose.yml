@@ -22,6 +22,7 @@ services:
         networks:
             - auth-network
             - user-network
+            - post-network
 
     auth:
         build: ./services/auth
@@ -42,7 +43,7 @@ services:
             session-redis:
                 condition: service_healthy
         environment:
-            RABBITMQ_URL: amqp://rabbitmq:5672
+            RABBITMQ_URL: ${RABBITMQ_URL}
 
     user:
         build: ./services/user
@@ -61,7 +62,7 @@ services:
             session-redis:
                 condition: service_healthy
         environment:
-            RABBITMQ_URL: amqp://rabbitmq:5672
+            RABBITMQ_URL: ${RABBITMQ_URL}
 
     post:
         build: ./services/post
@@ -70,6 +71,17 @@ services:
         env_file:
             - ./services/post/.env
         command: ["npm", "start"]
+        networks:
+            - post-network
+        depends_on:
+            post-postgres:
+                condition: service_healthy
+            rabbitmq:
+                condition: service_started
+            session-redis:
+                condition: service_healthy
+        environment:
+            RABBITMQ_URL: ${RABBITMQ_URL}
 
     comment:
         build: ./services/comment
@@ -166,6 +178,22 @@ services:
             retries: 5
         volumes:
             - user-db-data:/var/lib/postgresql/data
+    
+    post-postgres:
+        image: postgres
+        ports:
+            - "5434:5432"
+        env_file:
+            - ./services/post/.env
+        networks:
+            - post-network
+        healthcheck:
+            test: ["CMD-SHELL", "sh -c 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB'"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        volumes:
+            - post-db-data:/var/lib/postgresql/data
 
     auth-redis:
         image: redis
@@ -210,6 +238,7 @@ services:
         networks:
             - auth-network
             - user-network
+            - post-network
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             interval: 10s
@@ -232,6 +261,7 @@ services:
         networks:
             - auth-network
             - user-network
+            - post-network
 
     rabbitmq:
         image: rabbitmq:3-management
@@ -242,10 +272,29 @@ services:
             - auth-network
             - user-network
 
+    minio:
+        image: minio/minio
+        container_name: minio
+        ports:
+            - "9000:9000"
+            - "9001:9001"
+        environment:
+            MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+            MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+        volumes:
+            - minio_data:/data
+        networks:
+            - user-network
+        command: server --console-address ":9001" /data
+  
+
+
 volumes:
     auth-db-data:
         driver: local
     user-db-data:
+        driver: local
+    post-db-data:
         driver: local
     auth-redis-data:
         driver: local
@@ -255,9 +304,13 @@ volumes:
         driver: local
     pgadmin-data:
         driver: local
+    minio_data:
+        driver: local
 
 networks:
     auth-network:
         driver: bridge
     user-network:
+        driver: bridge
+    post-network:
         driver: bridge
