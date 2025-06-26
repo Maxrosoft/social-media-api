@@ -26,7 +26,7 @@ class Mailer {
             from: BREVO_SENDER,
             to: this.email,
             subject: "Verify your email",
-            html: `<p>Click <a href="http://localhost:3000/api/auth/verify-email?verificationToken=${verificationToken}">here</a> to verify your email</p>`,
+            html: `<p>Click <a href="${process.env.DOMEN}/api/auth/verify-email?verificationToken=${verificationToken}">here</a> to verify your email</p>`,
         };
         await this.transporter.sendMail(mailOptions);
     }

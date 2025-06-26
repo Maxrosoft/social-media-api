@@ -73,6 +73,7 @@ services:
         command: ["npm", "start"]
         networks:
             - post-network
+            - user-network
         depends_on:
             post-postgres:
                 condition: service_healthy

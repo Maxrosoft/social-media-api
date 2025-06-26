@@ -207,6 +207,53 @@ class UsersController {
                 return res.status(response.statusCode).json(response);
             }
 
+            // Check if the user is already a follow request
+            const isFollowRequest = await FollowRequest.findOne({
+                where: {
+                    requesterId: sessionUser.id,
+                    requestedId: userId,
+                },
+            });
+            if (isFollowRequest) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "You have already sent a follow request to this user.",
+                };
+            }
+
+            // Check if the user is blocked
+            const isBlocked = await Block.findOne({
+                where: {
+                    blockerId: sessionUser.id,
+                    blockedId: userId,
+                },
+            });
+            if (isBlocked) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "You have blocked this user.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
+            // Check if the user has blocked the session user
+            const isBlockedByUser = await Block.findOne({
+                where: {
+                    blockerId: userId,
+                    blockedId: sessionUser.id,
+                },
+            });
+            if (isBlockedByUser) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "This user has blocked you.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
             // Check if the user is private
             if (userFromDB.isPrivate) {
                 await FollowRequest.create({
@@ -550,6 +597,14 @@ class UsersController {
             await Block.create({
                 blockerId: sessionUser.id,
                 blockedId: userId,
+            });
+
+            // Delete the follow
+            await Follow.destroy({
+                where: {
+                    followerId: sessionUser.id,
+                    followingId: userId,
+                },
             });
 
             // Send the response

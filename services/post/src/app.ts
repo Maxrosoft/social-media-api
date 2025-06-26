@@ -3,6 +3,7 @@ import "dotenv/config";
 import sequelize from "./config/sequelize";
 import postsRouter from "./routes/postsRouter";
 import errorHandler from "./middlewares/errorHandler";
+import { initMinioBucket } from "./utils/initMinio";
 
 const PORT = process.env.PORT || 3003;
 
@@ -31,6 +32,8 @@ app.use(errorHandler);
     try {
         await sequelize.sync({ force: false });
         console.log(`Connection with ${process.env.POSTGRES_DB} has been established successfully.`);
+        await initMinioBucket(process.env.MINIO_BUCKET as string);
+        console.log(`Bucket ${process.env.MINIO_BUCKET} initialized...`);
         app.listen(PORT, () => {
             console.log(`Post service is running on port ${PORT}`);
         });

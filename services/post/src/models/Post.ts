@@ -17,6 +17,10 @@ const Post = sequelize.define(
             type: DataTypes.TEXT,
             allowNull: true,
         },
+        media: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+        },
         visibility: {
             type: ENUM("public", "followers-only", "private"),
             allowNull: false,

@@ -40,4 +40,4 @@ export default async function authenticateToken(req: Request, res: Response, nex
     } catch (error) {
         next(error);
     }
-} 
+}
