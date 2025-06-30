@@ -375,6 +375,16 @@ class PostsController {
             const sessionUser = req.user;
             const visibility = req.body.visibility;
 
+            // Check if the visibility is present
+            if (!visibility) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 400,
+                    message: "Visibility is required.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
             // Check if the post exists
             const post: any = await Post.findByPk(postId);
             if (!post) {
@@ -396,6 +406,16 @@ class PostsController {
                 return res.status(response.statusCode).json(response);
             }
 
+            // Check if the user is not the post author
+            if (post.authorId === sessionUser.id) {
+                const response: APIResponse = {
+                    success: false,
+                    statusCode: 403,
+                    message: "You cannot share your own post.",
+                };
+                return res.status(response.statusCode).json(response);
+            }
+
             // Check if the visibility is public
             if (post.visibility !== "public") {
                 const response: APIResponse = {
@@ -411,7 +431,7 @@ class PostsController {
                 authorId: sessionUser.id,
                 content: post.content,
                 media: post.media,
-                visibility: visibility || "public",
+                visibility: visibility,
                 sharePostId: postId,
             });
 
@@ -420,7 +440,7 @@ class PostsController {
                 success: true,
                 statusCode: 200,
                 message: "Post shared successfully.",
-                data: { sharedPost },
+                data: { sharedPost},
             };
             return res.status(response.statusCode).json(response);
         } catch (error) {

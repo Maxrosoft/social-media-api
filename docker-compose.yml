@@ -23,6 +23,7 @@ services:
             - auth-network
             - user-network
             - post-network
+            - comment-network
 
     auth:
         build: ./services/auth
@@ -39,7 +40,7 @@ services:
             auth-redis:
                 condition: service_healthy
             rabbitmq:
-                condition: service_started
+                condition: service_healthy
             session-redis:
                 condition: service_healthy
         environment:
@@ -58,7 +59,7 @@ services:
             user-postgres:
                 condition: service_healthy
             rabbitmq:
-                condition: service_started
+                condition: service_healthy
             session-redis:
                 condition: service_healthy
         environment:
@@ -77,8 +78,6 @@ services:
         depends_on:
             post-postgres:
                 condition: service_healthy
-            rabbitmq:
-                condition: service_started
             session-redis:
                 condition: service_healthy
         environment:
@@ -91,6 +90,14 @@ services:
         env_file:
             - ./services/comment/.env
         command: ["npm", "start"]
+        networks:
+            - comment-network
+            - post-network
+        depends_on:
+            comment-postgres:
+                condition: service_healthy
+            session-redis:
+                condition: service_healthy
 
     feed:
         build: ./services/feed
@@ -196,6 +203,22 @@ services:
         volumes:
             - post-db-data:/var/lib/postgresql/data
 
+    comment-postgres:
+        image: postgres
+        ports:
+            - "5435:5432"
+        env_file:
+            - ./services/comment/.env
+        networks:
+            - comment-network
+        healthcheck:
+            test: ["CMD-SHELL", "sh -c 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB'"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+        volumes:
+            - comment-db-data:/var/lib/postgresql/data
+
     auth-redis:
         image: redis
         restart: always
@@ -240,6 +263,7 @@ services:
             - auth-network
             - user-network
             - post-network
+            - comment-network
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
             interval: 10s
@@ -263,6 +287,7 @@ services:
             - auth-network
             - user-network
             - post-network
+            - comment-network
 
     rabbitmq:
         image: rabbitmq:3-management
@@ -272,6 +297,11 @@ services:
         networks:
             - auth-network
             - user-network
+        healthcheck:
+            test: ["CMD", "rabbitmqctl", "status"]
+            interval: 10s
+            timeout: 3s
+            retries: 5
 
     minio:
         image: minio/minio
@@ -287,8 +317,6 @@ services:
         networks:
             - user-network
         command: server --console-address ":9001" /data
-  
-
 
 volumes:
     auth-db-data:
@@ -307,6 +335,8 @@ volumes:
         driver: local
     minio_data:
         driver: local
+    comment-db-data:
+        driver: local
 
 networks:
     auth-network:
@@ -314,4 +344,6 @@ networks:
     user-network:
         driver: bridge
     post-network:
+        driver: bridge
+    comment-network:
         driver: bridge

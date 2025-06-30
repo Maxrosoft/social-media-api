@@ -40,6 +40,9 @@ passport.use(
                         passwordHash: null,
                     });
                 }
+            } else {
+                user.firstLogin = false;
+                await user.save();
             }
 
             return done(null, user);

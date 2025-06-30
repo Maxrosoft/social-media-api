@@ -557,9 +557,9 @@ class AuthController {
         try {
             // Destructure the request
             const user: any = req.user;
-
+            
             // Publish the user created event
-            if (user.firstLogin) {
+            if (user.dataValues.firstLogin) {
                 const publishedUser: PublishedUser = {
                     id: user.id,
                     email: user.email,
